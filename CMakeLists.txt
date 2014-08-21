@@ -20,8 +20,16 @@ add_library(kry_core SHARED
   src/Arnoldi.cxx
 )
 
+add_library(kry_input SHARED
+  src/PSSE.cxx
+  src/Common.cc
+)
+
 add_executable(BasicMathTests test/BasicMathTests.cxx)
 target_link_libraries(BasicMathTests kry_core gtest gtest_main pthread)
 
 add_executable(ArnoldiTests test/ArnoldiTests.cxx)
 target_link_libraries(ArnoldiTests kry_core gtest gtest_main pthread)
+
+add_executable(ieee14Test test/ieee14.cxx)
+target_link_libraries(ieee14Test kry_core kry_input gtest gtest_main pthread)

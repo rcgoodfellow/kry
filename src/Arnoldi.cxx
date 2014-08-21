@@ -30,12 +30,10 @@ void Arnoldi::operator()()
   r0 = b - A*x0;  
   r0_norm = norm(r0);
   r0 /= r0_norm;
-  std::cout << "r0:" << r0 << std::endl;
   Q.C(0) = r0;
 
   for(size_t i=0; i<n(); ++i)
   {
-    std::cout << "Q:\n" << Q << std::endl;
     //Next subspace element
     Q.C(i+1) = A*Q.C(i);
 
@@ -44,16 +42,15 @@ void Arnoldi::operator()()
     Q.C(i+1) -= Q.C(0,i+1) * H.C(i)(0,i+1);
 
     //reortho
-    //Vector s = T(Q.C(0,i+1)) * Q.C(i+1);
-    //Q.C(i+1) -= Q.C(0,i+1) * s;
-    //H.C(i) += s;
+    Vector s = T(Q.C(0,i+1)) * Q.C(i+1);
+    Q.C(i+1) -= Q.C(0,i+1) * s;
+    H.C(i) += s;
 
     //normo
     Vector x = Q.C(i+1);
     double xn = norm(x);
     H.C(i)(i+1) = xn;
     Q.C(i+1) = x / xn;
-    std::cout << "H:\n" << H << std::endl;
   }
 
   rotate_h2t();

@@ -68,7 +68,7 @@ void log_kvp(const char* key, T value)
 #define LOG(__X__) printf __X__
 #define LOG_KVP(__X__) log_kvp(#__X__, __X__)
 #else
-#define LOG_FUNC ;;
+#define LOG_FUNC() ;;
 #define LOG(__X__) ;;
 #define LOG_KVP(__X__) ;;
 #endif

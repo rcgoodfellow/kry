@@ -17,18 +17,6 @@ TEST(Arnoldi, Small)
   Arnoldi arnoldi(5, A, x0, b);
   arnoldi();
   
-  std::cout << "Q" << std::endl;
-  std::cout << arnoldi.Q << std::endl;
-   
-  std::cout << "H" << std::endl;
-  std::cout << arnoldi.H << std::endl;
-
-  std::cout << "d" << std::endl;
-  std::cout << arnoldi.d << std::endl;
-  
-  std::cout << "t" << std::endl;
-  std::cout << arnoldi.t << std::endl;
-
   std::cout << "xn" << std::endl;
   std::cout << arnoldi.xn << std::endl;
 

@@ -331,11 +331,8 @@ Vector mul_mv(Matrix A, Vector x, size_t cbegin, size_t cend)
   CountdownLatch cl(nt);
   for(size_t tid=0; tid<nt; ++tid)
   {
-    std::cout << "," << std::flush;
     Task t = [tid,A,x,Ax,rpt,&cl,cbegin,cend]()
     {
-      std::cout << "*" << std::flush;
-      std::cout << tid << std::flush;
       size_t jbegin = tid*rpt,
              jend = jbegin + rpt;
       
@@ -350,14 +347,12 @@ Vector mul_mv(Matrix A, Vector x, size_t cbegin, size_t cend)
         }
       }
       --cl;
-      std::cout << "." << std::flush;
     };
     RT::get().workers[tid]->mtx->lock();
     RT::get().workers[tid]->task = t;
     RT::get().workers[tid]->mtx->unlock();
     RT::get().workers[tid]->cnd->notify_all();
   }
-  std::cout << "nacho" << std::endl;
   cl.wait();
 
   return Ax;
