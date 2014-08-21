@@ -34,15 +34,37 @@ ulong kry::input::previousRow(const string &s, ulong pos)
     return ++pos;
 }
 
+template<typename charT>
+struct case_insensitive_eq
+{
+  bool operator()(charT a, charT b)
+  {
+    return std::toupper(a) == std::toupper(b);
+  }
+};
+
+template<typename T>
+int case_insensitive_find(const T& s1, size_t start, const T& s2)
+{
+  typename
+  T::const_iterator it = std::search(
+      s1.begin()+start, s1.end(),
+      s2.begin(), s2.end(),
+      case_insensitive_eq<typename T::value_type>());
+
+  if(it != s1.end()) return it - s1.begin();
+  else return -1;
+}
+
 ulong kry::input::startOfSection(const string &text, ulong start, string delim)
 {
-    ulong result = text.find(delim, start);
+    ulong result = case_insensitive_find(text, start, delim);
     return nextRow(text, result);
 }
 
 ulong kry::input::endOfSection(const string &text, ulong start, string delim)
 {
-    ulong result = text.find(delim, start);
+    ulong result = case_insensitive_find(text, start, delim);
     return previousRow(text, result);
 }
 
