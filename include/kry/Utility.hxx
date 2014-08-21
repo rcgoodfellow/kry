@@ -31,6 +31,9 @@
 #define BAD_COLRANGE \
   std::runtime_error("bad column range:" + CRIME_SCENE);
 
+#define BAD_COLREF \
+  std::runtime_error("bad column reference:" + CRIME_SCENE);
+
 namespace kry
 {
 

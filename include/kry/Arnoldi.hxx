@@ -24,13 +24,15 @@ class Arnoldi
 
     Matrix Q, H;
     SparseMatrix A;
-    Vector x0, b, r0;
+    Vector x0, b, r0, d, t, xn;
+    double r0_norm;
 
     size_t N() const, n() const;
     void operator()();
 
   private:
     size_t _n;
+    void rotate_h2t();
 
 };
 

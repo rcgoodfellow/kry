@@ -15,6 +15,8 @@
 #include <memory>
 #include <cmath>
 #include <iostream>
+#include <iomanip>
+#include <random>
 
 namespace kry
 {
@@ -24,6 +26,8 @@ class Matrix;
 class Column;
 class ColumnRange;
 class SparseMatrix;
+
+class Rotator;
 
 template<class A> A T(A a) 
 { 
@@ -38,6 +42,7 @@ class Vector
     Vector(std::initializer_list<double>);
     Vector(Column c);
     static Vector Zero(size_t n);
+    static Vector Random(size_t n, double mean, double variance);
     ~Vector();
 
     double & operator()(size_t i) const;
@@ -76,6 +81,7 @@ class Matrix
     Matrix(size_t m, size_t n, std::initializer_list<double>);
     static Matrix Zero(size_t m, size_t n);
     static Matrix Identity(size_t m, size_t n);
+    static Matrix Random(size_t m, size_t n, double mean, double variance);
 
     double & operator()(size_t i, size_t j) const;
     Matrix operator!() const;
@@ -98,6 +104,8 @@ class Matrix
 bool operator==(Matrix A, Matrix B);
 Vector operator*(Matrix A, Vector x);
 Matrix operator*(Matrix A, Matrix B);
+
+Vector back_substitute(Matrix, Vector);
 
 std::ostream & operator<<(std::ostream &o, const Matrix x);
 
@@ -167,6 +175,31 @@ class SparseMatrix
 
 Vector operator*(const SparseMatrix, const Vector);
 Vector operator*(const SparseMatrix, const Column);
+
+class Rotator
+{
+  public:
+    Rotator(Vector, size_t, size_t);
+    Rotator(Matrix, size_t, size_t);
+
+    Vector apply(Vector);
+    Matrix apply_left(Matrix);
+    Matrix apply_right(Matrix);
+
+    size_t i() const, j() const;
+    double c() const, s() const;
+
+  private:
+    size_t _i, _j;
+    double xi, xj;
+    double _c, _s;
+
+    void compute_c_s();
+};
+
+Vector operator* (const Rotator, const Vector);
+Matrix operator* (const Rotator, const Matrix);
+Matrix operator* (const Matrix, const Rotator);
 
 }
 

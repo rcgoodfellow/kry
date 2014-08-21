@@ -237,3 +237,37 @@ TEST(SparseMatrix, SparseMatrixVecMul2)
 
   EXPECT_TRUE(Ax == _Ax_);
 }
+
+TEST(Rotator, Vector)
+{
+  //Random vector of size 10 with mean 50 and variance 10
+  Vector x = Vector::Random(10, 50, 10);
+
+  Rotator r(x, 4, 7);
+
+  Vector rx = r * x;
+
+  EXPECT_NEAR(0, rx(7), 1e-14);  //TODO: lower this error bound
+  
+  r.apply(x);
+
+  EXPECT_NEAR(0, x(7), 1e-14); 
+}
+
+TEST(Rotator, Matrix)
+{
+  Matrix A = Matrix::Random(10, 10, 50, 10);
+  Rotator r(A, 4 ,7); //in column 4 eliminate row 7
+
+  Matrix rA = r * A;
+  
+  EXPECT_NEAR(0, rA(7,4), 1e-14);
+
+  cout << A << endl;
+  r.apply_left(A);
+  cout << A << endl;
+  
+  EXPECT_NEAR(0, A(7,4), 1e-14);
+}
+
+

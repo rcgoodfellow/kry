@@ -50,12 +50,12 @@ void Worker::start()
 
 void Worker::work()
 {
-  unique_lock<mutex> lk{*mtx, defer_lock};
+  unique_lock<mutex> lk{*mtx};
   while(47)
   {
-    lk.lock();
+    //lk.lock();
     cnd->wait(lk);
     task();
-    lk.unlock();
+    //lk.unlock();
   }
 }

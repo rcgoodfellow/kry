@@ -14,7 +14,7 @@ TEST(Arnoldi, Small)
   Vector b{0.47, 0.32, 0.34, 0.41, 0.28};
   Vector x0{0,0,0,0,0};
 
-  Arnoldi arnoldi(6, A, x0, b);
+  Arnoldi arnoldi(5, A, x0, b);
   arnoldi();
   
   std::cout << "Q" << std::endl;
@@ -23,6 +23,13 @@ TEST(Arnoldi, Small)
   std::cout << "H" << std::endl;
   std::cout << arnoldi.H << std::endl;
 
-  //touch
+  std::cout << "d" << std::endl;
+  std::cout << arnoldi.d << std::endl;
+  
+  std::cout << "t" << std::endl;
+  std::cout << arnoldi.t << std::endl;
+
+  std::cout << "xn" << std::endl;
+  std::cout << arnoldi.xn << std::endl;
 
 }

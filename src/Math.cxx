@@ -17,6 +17,8 @@ using std::min;
 using std::max;
 using std::ceil;
 using std::ostream;
+using std::setprecision;
+using std::fixed;
 
 Vector::Vector(size_t n)
   : _n{n}, _data(alloc<double>(n), _mm_free)
@@ -34,6 +36,17 @@ Vector Vector::Zero(size_t n)
 {
   Vector x(n);
   for(size_t i=0; i<n; ++i){ x(i) = 0; }
+  return x;
+}
+
+Vector Vector::Random(size_t n, double mean, double variance)
+{
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::normal_distribution<> d(mean, variance);
+
+  Vector x(n);
+  for(size_t i=0; i<n; ++i){ x(i) = d(gen); }
   return x;
 }
 
@@ -178,6 +191,19 @@ Matrix Matrix::Identity(size_t m, size_t n)
   for(size_t i=0; i<last; ++i){ A(i,i) = 1; }
   return A;
 }
+    
+Matrix Matrix::Random(size_t m, size_t n, double mean, double variance)
+{
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::normal_distribution<> d(mean, variance);
+
+  Matrix A(m, n);
+  for(size_t i=0; i<A.m(); ++i) {
+    for(size_t j=0; j<A.m(); ++j) { A(i,j) = d(gen); }
+  }
+  return A;
+}
 
 size_t Matrix::m() const { return _m; }
 size_t Matrix::n() const { return _n; }
@@ -211,6 +237,7 @@ Matrix Matrix::operator*=(const Matrix A)
 
 Column Matrix::C(size_t idx)
 {
+  if(idx >= n()) { throw BAD_COLREF }
   return Column(*this, idx);
 }
 
@@ -271,8 +298,10 @@ Vector mul_mv_t(Matrix A, Vector x, size_t cbegin, size_t cend)
       }
       --cl;
     };
+    RT::get().workers[tid]->mtx->lock();
     RT::get().workers[tid]->task = t;
-    RT::get().workers[tid]->cnd->notify_one();
+    RT::get().workers[tid]->mtx->unlock();
+    RT::get().workers[tid]->cnd->notify_all();
   }
   cl.wait();
 
@@ -296,12 +325,17 @@ Vector mul_mv(Matrix A, Vector x, size_t cbegin, size_t cend)
   LOG_KVP(dpt);
   LOG_KVP(rpt);
   LOG_KVP(nt);
+  LOG_KVP(cbegin);
+  LOG_KVP(cend);
 
   CountdownLatch cl(nt);
   for(size_t tid=0; tid<nt; ++tid)
   {
+    std::cout << "," << std::flush;
     Task t = [tid,A,x,Ax,rpt,&cl,cbegin,cend]()
     {
+      std::cout << "*" << std::flush;
+      std::cout << tid << std::flush;
       size_t jbegin = tid*rpt,
              jend = jbegin + rpt;
       
@@ -316,10 +350,14 @@ Vector mul_mv(Matrix A, Vector x, size_t cbegin, size_t cend)
         }
       }
       --cl;
+      std::cout << "." << std::flush;
     };
+    RT::get().workers[tid]->mtx->lock();
     RT::get().workers[tid]->task = t;
-    RT::get().workers[tid]->cnd->notify_one();
+    RT::get().workers[tid]->mtx->unlock();
+    RT::get().workers[tid]->cnd->notify_all();
   }
+  std::cout << "nacho" << std::endl;
   cl.wait();
 
   return Ax;
@@ -366,16 +404,38 @@ Matrix kry::operator*(Matrix A, Matrix B)
       }
       --cl;
     };
+    RT::get().workers[tid]->mtx->lock();
     RT::get().workers[tid]->task = t;
-    RT::get().workers[tid]->cnd->notify_one();
+    RT::get().workers[tid]->mtx->unlock();
+    RT::get().workers[tid]->cnd->notify_all();
   }
   cl.wait();
 
   return AB;
 }
 
+Vector kry::back_substitute(Matrix A, Vector b)
+{
+  Vector x(b.n());
+  for(size_t i=0; i<x.n(); ++i){ x(i) = 1; }
+
+  double s;
+  for(int i=x.n()-1; i>=0; --i)
+  {
+    s=0;
+    for(int j=x.n()-1; j>i; --j)
+    {
+      s += A(i,j) * x(j);
+    }
+    x(i) = (b(i) - s)/A(i,i);
+  }
+
+  return x;
+}
+
 ostream & kry::operator<<(ostream &o, const Vector x)
 {
+  o << setprecision(6) << fixed;
   o << "[";
   for(size_t i=0; i<x.n()-1; ++i)
   {
@@ -388,6 +448,7 @@ ostream & kry::operator<<(ostream &o, const Vector x)
 
 ostream & kry::operator<<(ostream &o, const Matrix A)
 {
+  o << setprecision(6) << fixed;
   for(size_t i=0; i<A.m(); ++i)
   {
     for(size_t j=0; j<A.n(); ++j)
@@ -591,8 +652,10 @@ Vector kry::operator*(const SparseMatrix A, const Vector x)
 
       --cl;
     };
+    RT::get().workers[tid]->mtx->lock();
     RT::get().workers[tid]->task = t;
-    RT::get().workers[tid]->cnd->notify_one();
+    RT::get().workers[tid]->mtx->unlock();
+    RT::get().workers[tid]->cnd->notify_all();
   }
   cl.wait();
   
@@ -624,4 +687,104 @@ Vector kry::operator*(const ColumnRange C, const Column c)
 {
   Vector x = c;
   return C * x;
+}
+
+//Rotator ---------------------------------------------------------------------
+
+Rotator::Rotator(Vector x, size_t i, size_t j)
+  : _i{i}, _j{j}
+{
+  xi = x(i);
+  xj = x(j);
+
+  compute_c_s();
+}
+
+Rotator::Rotator(Matrix A, size_t i, size_t j)
+  : _i{i}, _j{j}
+{
+  xi = A(i, i); //annihilator
+  xj = A(j, i); //annihilatee
+
+  compute_c_s();
+}
+
+void Rotator::compute_c_s()
+{
+  double B = fmax(fabs(xi), fabs(xj));
+  if(B == 0) { _c = 1, _s = 0; }
+  else
+  {
+    double _xi = xi/B, _xj = xj/B;
+    double v = sqrt(_xi*_xi + _xj*_xj);
+    _c = _xi/v, _s = _xj/v;
+  }
+}
+
+size_t Rotator::i() const { return _i; }
+size_t Rotator::j() const { return _j; }
+double Rotator::c() const { return _c; }
+double Rotator::s() const { return _s; }
+
+Vector kry::operator* (const Rotator r, const Vector v)
+{
+  Vector x = !v;
+  double xi = x(r.i()), xj = x(r.j());
+
+  x(r.i()) = r.c()*xi + r.s()*xj;
+  x(r.j()) = (-r.s())*xi + r.c()*xj;
+
+  return x;
+}
+
+Vector Rotator::apply(Vector x)
+{
+  double xi = x(i()), xj = x(j());
+
+  x(i()) = c()*xi + s()*xj;
+  x(j()) = (-s())*xi + c()*xj;
+
+  return x;
+}
+    
+Matrix Rotator::apply_left(Matrix M)
+{
+  double xi, xj;
+  for(size_t k=0; k<M.n(); ++k)
+  {
+    xi = M(i(), k),
+    xj = M(j(), k);
+
+    M(i(), k) = c()*xi + s()*xj;
+    M(j(), k) = (-s())*xi + c()*xj;
+  }
+
+  return M;
+}
+
+Matrix Rotator::apply_right(Matrix)
+{
+  //TODO
+}
+
+Matrix kry::operator* (const Rotator r, const Matrix M)
+{
+  Matrix A = !M;
+  double xi, xj;
+
+  for(size_t k=0; k<A.n(); ++k)
+  {
+    xi = M(r.i(), k),
+    xj = M(r.j(), k);
+
+    A(r.i(), k) = r.c()*xi + r.s()*xj;
+    A(r.j(), k) = (-r.s())*xi + r.c()*xj;
+  }
+
+  return A;
+}
+
+Matrix kry::operator* (const Matrix, const Rotator)
+{
+  //TODO
 }
