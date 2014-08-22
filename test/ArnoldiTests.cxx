@@ -4,6 +4,9 @@
 
 using namespace kry;
 
+using std::cout;
+using std::endl;
+
 TEST(Arnoldi, Small)
 {
   SparseMatrix A(5,5,4,
@@ -17,7 +20,7 @@ TEST(Arnoldi, Small)
   Arnoldi arnoldi(5, A, x0, b);
   arnoldi();
   
-  std::cout << "xn" << std::endl;
-  std::cout << arnoldi.xn << std::endl;
+  cout << "xn" << endl;
+  cout << arnoldi.xn << endl;
 
 }

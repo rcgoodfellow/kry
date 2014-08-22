@@ -545,7 +545,10 @@ SparseMatrix::SparseMatrix(size_t m, size_t n, size_t z)
     _r(alloc<size_t>(m), _mm_free),
     _c(alloc<size_t>(m*z), _mm_free),
     _v(alloc<double>(m*z), _mm_free)
-{}
+{
+  size_t *_rp = _r.get();
+  for(size_t i=0; i<m; ++i){ _rp[i] = 0; }
+}
 
 SparseMatrix::SparseMatrix(size_t m, size_t n, size_t z,
         std::vector<size_t> rs, std::vector<size_t> cs, 
@@ -604,7 +607,34 @@ double & SparseMatrix::operator()(size_t i, size_t j)
     if(_cp[_z*i + k] == j){return _vp[_z*i + k];}
   }
 
-  throw UNREAL;
+  //if we could not find an entry, add one
+
+  //if there is no room throw
+  if(r(i) == z()) throw OVERSTUFFED;
+
+  //add a unit entry into the requested row column pair
+  size_t k = r(i);
+  _cp[_z*i + k] = j;
+  _vp[_z*i + k] = 0;
+  ++_rp[i];
+ 
+  //return a reference to the newly added entry
+  return _vp[_z*i + k];
+}
+
+double SparseMatrix::get(size_t i, size_t j)
+{
+  if(i >= _m || j >= _n) { throw UNREAL; }
+  
+  size_t *_rp = _r.get(), *_cp = _c.get();
+  double *_vp = _v.get();
+  
+  for(size_t k=0; k<_rp[i]; ++k)
+  {
+    if(_cp[_z*i + k] == j){return _vp[_z*i + k];}
+  }
+
+  return 0;
 }
 
 size_t SparseMatrix::m() const { return _m; }
@@ -661,6 +691,19 @@ Vector kry::operator*(const SparseMatrix A, const Column c)
 {
   Vector x = c;
   return A * x;
+}
+
+ostream & kry::operator<<(ostream &o, SparseMatrix A)
+{
+  for(size_t i=0; i<A.m(); ++i)
+  {
+    for(size_t j=0; j<A.n(); ++j)
+    {
+      o << A.get(i,j) << " ";
+    }
+    o << "\n";
+  }
+  return o;
 }
 
 ColumnRange::ColumnRange(Matrix M, size_t begin, size_t end)

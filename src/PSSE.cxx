@@ -9,6 +9,7 @@
  * ***************************************************************************/
 #include "kry/PSSE.hxx"
 
+using namespace kry;
 using namespace kry::input::psse;
 using namespace kry::input;
 using std::string;
@@ -104,6 +105,13 @@ void kry::input::psse::Source::parseBus(ulong idx)
     b.owner = owner;
     
     buses.push_back(b);
+}
+
+void kry::input::psse::Source::parseHeader()
+{
+  string str = text.substr(0, nextRow(text, 0));
+  vector<string> toks = kry::input::split(str, ',');
+  base_mva = parseElem<double>(toks[1], "Invalid MVA base", 0); 
 }
 
 void kry::input::psse::Source::parseLoad(ulong idx)
@@ -324,6 +332,27 @@ void kry::input::psse::Source::parseLine(ulong idx)
     l.st = st;
     
     lines.push_back(l);
+}
+
+void kry::input::psse::Source::parseShunt(ulong idx)
+{
+  FixedShunt fs;
+
+  string str = text.substr(idx, nextRow(text, idx) - idx);
+  vector<string> toks = kry::input::split(str, ',');
+  ulong cidx{idx};
+
+  fs.i = parseElem<ulong>(toks[0], "Invalid Fixed shunt bus", cidx);
+  cidx += toks[0].length();
+
+  cidx += toks[1].length();
+  cidx += toks[2].length();
+  cidx += toks[3].length();
+
+  fs.b = parseElem<ulong>(toks[4], "Invalid Fixed shunt susceptance", cidx);
+  fs.b /= base_mva;
+
+  shunts.push_back(fs);
 }
 
 void kry::input::psse::Source::parseTransformer(ulong idx)
@@ -735,9 +764,11 @@ void kry::input::psse::Source::parseElements()
                   return a.number < b.number;
               }
              );
-    
+   
+    parseHeader();
     for(auto r : load_rows) { parseLoad(r); }
     for(auto r : gen_rows) { parseGen(r); }
+    for(auto r : shunt_rows) { parseShunt(r); }
     for(auto r : line_rows) { parseLine(r); }
     for(auto r : tfmr_rows) { parseTransformer(r); }
 }
@@ -749,7 +780,9 @@ void kry::input::psse::Source::computeLayout()
     buses_end = endOfSection(text, buses_begin, "End of Bus data"),
     loads_begin = startOfSection(text, buses_end, "Begin Load data"),
     loads_end = endOfSection(text, loads_begin, "End of Load data"),
-    gens_begin = startOfSection(text, loads_end, "Begin Generator data"),
+    shunt_begin = startOfSection(text, loads_end, "Begin Fixed Shunt data"),
+    shunt_end = endOfSection(text, shunt_begin, "End of Fixed Shunt data"),
+    gens_begin = startOfSection(text, shunt_end, "Begin Generator data"),
     gens_end = endOfSection(text, gens_begin, "End of Generator data"),
     lines_begin = startOfSection(text, gens_end, "Begin Branch data"),
     lines_end = endOfSection(text, lines_begin, "End of Branch data"),
@@ -763,6 +796,7 @@ void kry::input::psse::Source::computeLayout()
     gen_rows = rowIndices(text, gens_begin, gens_end);
     line_rows = rowIndices(text, lines_begin, lines_end);
     tfmr_rows = rowIndices(text, transformers_begin, transformers_end);
+    shunt_rows = rowIndices(text, shunt_begin, shunt_end);
 }
 
 void kry::input::psse::Source::resolveTransfomerIndicies()
@@ -783,6 +817,7 @@ string kry::input::psse::Source::basicReport()
     ss << "PsseSource Basic Report ---" << endl
     << "Buses           " << bus_rows.size() << endl
     << "Loads           " << load_rows.size() << endl
+    << "Shunts          " << shunt_rows.size() << endl
     << "Generators      " << gen_rows.size() << endl
     << "Lines           " << line_rows.size() << endl
     << "Transformers    " << tfmr_rows.size() << endl;
@@ -813,6 +848,23 @@ void kry::input::psse::Source::assignSystemIds()
   for(auto &b : buses)
   {
     b.sid = seq++;
+  }
+
+  for(Line &l : lines)
+  {
+    l.si = findBus(l.i).sid;
+    l.sj = findBus(l.j).sid;
+  }
+  
+  for(Transformer &t : transformers)
+  {
+    t.si = findBus(t.i).sid;
+    t.sj = findBus(t.j).sid;
+  }
+
+  for(FixedShunt &s : shunts)
+  {
+    s.si = findBus(s.i).sid;
   }
 }
 
@@ -975,217 +1027,77 @@ std::vector<double> kry::input::psse::Source::qSch()
   return result;
 }
 
-/*
-GridSpace::Grid kry::input::psse::Source::toGrid()
+size_t compute_max_node_valence(const Source &s)
 {
-  Grid g{};
-
-  g.buses.reserve(buses.size());
-  g.lines.reserve(lines.size());
-  g.transformers.reserve(lines.size());
-
-  uint seq_bid{0};
-  for(auto &b : buses)
+  vector<size_t> valences(s.buses.size(), 1);
+  for(const Line &l : s.lines)
   {
-    b.sid = seq_bid++;
-    GridSpace::Bus bus{static_cast<uint>(b.sid)};
-
-    switch(b.type)
-    {
-      case 1 : bus.type = PQ; break;
-      case 2 : bus.type = PV; break;
-      case 3 : bus.type = SLACK; break;
-      case 4 : bus.type = ISOLATED; break;
-      default:
-      {
-          stringstream ss{};
-          ss << "Unknown bus type `" << b.type << "` for bus with number "
-          << b.number;
-          throw runtime_error{ss.str()};
-      }
-    }
-
-    g.buses.push_back(bus);
-  }
-
-  uint seq_l_id{0};
-  for(auto &l : lines)
-  {
-    Bus &i = findBus(l.i),
-        &j = findBus(l.j);
-    GridSpace::Line ln;
-
-    ln.id = seq_l_id++;
-    ln.r = l.z.real();
-    ln.x = l.z.imag();
-    auto y = 1.0 / l.z;
-    ln.ym = std::abs(-y);
-    ln.ya = std::arg(-y);
-
-    GridSpace::Bus &bi = g.buses[i.sid],
-                   &bj = g.buses[j.sid];
-
-    bi.addNeighbor(bj.id, line_t, ln.id);
-    bj.addNeighbor(bi.id, line_t, ln.id);
-
-    bi.g += y.real();
-    bi.b += y.imag();
-    
-    bj.g += y.real();
-    bj.b += y.imag();
-
-    g.lines.push_back(ln);
-  }
-
-  uint seq_t_id{0};
-  for(auto &t : transformers)
-  {
-    Bus &i = findBus(t.i),
-        &j = findBus(t.j);
-    GridSpace::Transformer tf;
-
-    tf.id = seq_t_id++;
-    tf.t = t.windv2 / t.windv1;
-    auto y = 1.0 / t.z12;
-    tf.ym = std::abs(-tf.t * y);
-    tf.ya = std::arg(-tf.t * y);
-
-    GridSpace::Bus &bi = g.buses[i.sid],
-                   &bj = g.buses[j.sid];
-
-    bi.addNeighbor(bj.id, transformer_t, tf.id);
-    bj.addNeighbor(bi.id, transformer_t, tf.id);
-    
-    bi.g += (pow(tf.t, 2) * y).real();
-    bi.b += (pow(tf.t, 2) * y).imag();
-    
-    bj.g += y.real();
-    bj.b += y.imag();
-
-    g.transformers.push_back(tf);
-  }
-
-
-  return g;
-}
-*/
-
-/*
-std::unique_ptr<GridSpace::Model::Protocol::PGrid> 
-kry::input::psse::Source::getPGrid()
-{
-  namespace proto = GridSpace::Model::Protocol;
-  auto g = std::unique_ptr<proto::PGrid>( new proto::PGrid());
-
-  uint seq{0};
-  for(auto &b : buses)
-  {
-    //b.sid = seq++;
-    proto::PBus *bp = g->add_bus();
-    bp->set_id(b.sid);
-    switch(b.type)
-    {
-      case 1: bp->set_type(proto::PBus::PQ); break;
-      case 2: bp->set_type(proto::PBus::PV); break;
-      case 3: bp->set_type(proto::PBus::SLACK); break;
-      case 4: bp->set_type(proto::PBus::ISOLATED); break;
-    }
-    bp->set_name(b.name);
-    bp->set_n(0);
-  }
-
-  seq = 0;
-  for(auto &l : lines)
-  {
-
-    uint lid = seq++;
-    proto::PLine *lp = g->add_line();
-    lp->set_id(lid);
-    lp->set_r(l.z.real());
-    lp->set_x(l.z.imag());
-
-    Bus &i = findBus(l.i),
-        &j = findBus(l.j);
-
-    auto *bi = g->mutable_bus(i.sid);
-    auto *n = bi->add_neighbor();
-    n->set_type(proto::PBus::Neighbor::LINE);
-    n->set_nid(j.sid);
-    n->set_bid(lid);
-    bi->set_n(bi->n()+1);
-
-    auto *bj = g->mutable_bus(j.sid);
-    n = bj->add_neighbor();
-    n->set_type(proto::PBus::Neighbor::LINE);
-    n->set_nid(i.sid);
-    n->set_bid(lid);
-    bj->set_n(bj->n()+1);
-       
+    valences[l.si]++;
+    valences[l.sj]++;
   }
   
-  seq = 0;
-  for(auto &t : transformers)
+  for(const Transformer &t : s.transformers)
   {
-    uint tid = seq++;
-    proto::PTransformer *tp = g->add_transformer();
-    tp->set_id(tid);
-    tp->set_r(t.z12.real());
-    tp->set_x(t.z12.imag());
-    tp->set_t(t.windv2 / t.windv1);
-
-    Bus &i = findBus(t.i),
-        &j = findBus(t.j);
-
-    auto *bi = g->mutable_bus(i.sid);
-    auto *n = bi->add_neighbor();
-    n->set_type(proto::PBus::Neighbor::TRANSFORMER);
-    n->set_nid(j.sid);
-    n->set_bid(tid);
-    bi->set_n(bi->n()+1);
-
-    auto *bj = g->mutable_bus(j.sid);
-    n = bj->add_neighbor();
-    n->set_type(proto::PBus::Neighbor::TRANSFORMER);
-    n->set_nid(i.sid);
-    n->set_bid(tid);
-    bj->set_n(bj->n()+1);
+    valences[t.si]++;
+    valences[t.sj]++;
   }
 
-  return move(g);
+  return *std::max_element(valences.begin(), valences.end());
+
 }
 
-std::unique_ptr<GridSpace::Model::Protocol::DGrid> 
-kry::input::psse::Source::getDGrid()
+std::array<SparseMatrix, 2> kry::input::psse::ymatrix(const Source &s)
 {
-  namespace proto = GridSpace::Model::Protocol;
-  auto g = std::unique_ptr<proto::DGrid>(new proto::DGrid());
+  size_t z = compute_max_node_valence(s); 
+  size_t n = s.buses.size();
 
-  for(auto &b: buses)
+  SparseMatrix  Y(n, n, z),
+               YA(n, n, z);
+
+  for(const Line &l : s.lines)
   {
-    proto::DBus *db = g->add_bus();
-    db->set_id(b.sid);
-    db->set_vm(std::abs(b.v));
-    db->set_va(std::arg(b.v));
-    db->set_p(0);
-    db->set_q(0);
+    complex y_i_diag = std::polar(Y(l.si,l.si), YA(l.si,l.si));
+    complex y_j_diag = std::polar(Y(l.sj,l.sj), YA(l.sj,l.sj));
+    complex y = 1.0/l.z;
+    y_i_diag += y + complex(0, 0.5*l.b);
+    y_j_diag += y + complex(0, 0.5*l.b);
+    Y(l.si, l.si) = abs(y_i_diag);
+    Y(l.sj, l.sj) = abs(y_j_diag);
+    Y(l.si, l.sj) = Y(l.sj, l.si) = -abs(y);
+
+    YA(l.si, l.si) = arg(y_i_diag);
+    YA(l.sj, l.sj) = arg(y_j_diag);
+    YA(l.si, l.sj) = YA(l.sj, l.si) = -arg(y);
   }
 
-  for(auto &gen : gens)
+  for(const Transformer &t : s.transformers)
   {
-    Bus &b = findBus(gen.number);
-    proto::DBus *bp = g->mutable_bus(b.sid);
-    bp->set_p(bp->p()+gen.p.real());
-    bp->set_q(bp->p()+gen.p.imag());
-  }
-  
-  for(auto &load : loads)
-  {
-    Bus &b = findBus(load.number);
-    proto::DBus *bp = g->mutable_bus(b.sid);
-    bp->set_p(bp->p()-load.pql.real());
-    bp->set_q(bp->p()-load.pql.imag());
+    complex y_i_diag = std::polar(Y(t.si,t.si), YA(t.si,t.si));
+    complex y_j_diag = std::polar(Y(t.sj,t.sj), YA(t.sj,t.sj));
+    complex y = 1.0/t.z12;
+    double tr = t.windv2 / t.windv1;
+    y_i_diag += pow(tr,2) * y;
+    y_j_diag += y;
+
+    Y(t.si, t.si) = abs(y_i_diag);
+    Y(t.sj, t.sj) = abs(y_j_diag);
+    Y(t.si, t.sj) = -tr * abs(y);
+    Y(t.sj, t.si) = -tr * abs(y);
+    
+    YA(t.si, t.si) = arg(y_i_diag);
+    YA(t.sj, t.sj) = arg(y_j_diag);
+    YA(t.si, t.sj) = -tr * arg(y);
+    YA(t.sj, t.si) = -tr * arg(y);
   }
 
-  return g;
+  for(const FixedShunt &s : s.shunts)
+  {
+    complex y = std::polar(Y(s.si,s.si), YA(s.si,s.si));
+    std::cout << "sb" << s.b << std::endl;
+    y += complex(0, s.b);
+    Y(s.si,s.si) = abs(y);
+    YA(s.si,s.si) = arg(y);
+  }
+
+  return {{Y, YA}};
 }
-*/

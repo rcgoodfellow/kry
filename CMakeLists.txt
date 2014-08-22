@@ -18,6 +18,7 @@ add_subdirectory(gtest)
 add_library(kry_core SHARED 
   src/Math.cxx src/Runtime.cxx src/Utility.cxx
   src/Arnoldi.cxx
+  src/NKPF.cxx
 )
 
 add_library(kry_input SHARED

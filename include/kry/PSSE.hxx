@@ -10,12 +10,14 @@
 #define KRY_ARNOLDI_HXX
 
 #include "Common.hh"
+#include "kry/Math.hxx"
 
 #include <sstream>
 #include <iostream>
 #include <fstream>
 #include <complex>
 #include <memory>
+#include <array>
 
 namespace kry { namespace input { namespace psse {
 
@@ -68,6 +70,7 @@ struct Line
     : i{i}, j{j}, z{z} {}
     
     ulong i, j, sid{};
+    ulong si, sj;
     string ckt{};
     complex z, yi{}, yj{};
     double b{}, ratea{}, rateb{}, ratec{}, len{}, fi{};
@@ -84,6 +87,7 @@ struct Transformer
     
     //record1
     ulong i, j, k{}, sid{};
+    ulong si, sj;
     string ckt{}, name{};
     unsigned short cw{}, cz{}, cm{}, nmetr{}, stat{};
     complex magnetizing_y{};
@@ -114,6 +118,13 @@ struct Transformer
     complex cz3{};
 };
 
+struct FixedShunt
+{
+  size_t i, si;
+  double b;
+};
+
+
 template <typename T>
 T parseElem(const string & src,
             const string & err,
@@ -123,15 +134,19 @@ T parseElem(const string & src,
 struct Source
 {
     Source(string fn);
+
+    double base_mva;
     
     vector<ulong>
-    bus_rows{}, load_rows{}, gen_rows{}, line_rows{}, tfmr_rows{};
+    bus_rows{}, load_rows{}, gen_rows{}, line_rows{}, tfmr_rows{},
+    shunt_rows{};
     
     vector<Bus> buses{};
     vector<Load> loads{};
     vector<Gen> gens{};
     vector<Line> lines{};
     vector<Transformer> transformers{};
+    vector<FixedShunt> shunts{};
     
     string text;
     
@@ -152,11 +167,13 @@ struct Source
 private:
     void computeLayout();
     void resolveTransfomerIndicies();
+    void parseHeader();
     void parseElements();
     void parseBus(ulong idx);
     void parseLoad(ulong idx);
     void parseGen(ulong idx);
     void parseLine(ulong idx);
+    void parseShunt(ulong idx);
     void parseTransformer(ulong idx);
     
     
@@ -175,6 +192,8 @@ private:
     }
     
 };
+
+std::array<SparseMatrix,2> ymatrix(const Source &);
 
 
 }}} //namespace kry::input::psse

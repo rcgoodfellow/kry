@@ -28,6 +28,9 @@
 #define UNREAL \
   std::runtime_error("unreal sparse matrix coordinates:" + CRIME_SCENE);
 
+#define OVERSTUFFED \
+  std::runtime_error("overstuffing sparse matrix row:" + CRIME_SCENE);
+
 #define BAD_COLRANGE \
   std::runtime_error("bad column range:" + CRIME_SCENE);
 

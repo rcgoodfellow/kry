@@ -162,6 +162,7 @@ class SparseMatrix
     static SparseMatrix Identity(size_t m, size_t n, size_t z);
 
     double & operator()(size_t i, size_t j);
+    double get(size_t i, size_t j);
 
     size_t m() const, n() const, z() const;
     size_t r(size_t i) const, c(size_t i, size_t j) const;
@@ -175,6 +176,8 @@ class SparseMatrix
 
 Vector operator*(const SparseMatrix, const Vector);
 Vector operator*(const SparseMatrix, const Column);
+std::ostream & operator<<(std::ostream &, SparseMatrix);
+
 
 class Rotator
 {
