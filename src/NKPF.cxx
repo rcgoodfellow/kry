@@ -12,6 +12,24 @@
 
 using namespace kry;
 
+size_t JacobiMap::size() { return j0_sz + j1_sz; }
+
+NKPF::NKPF(SparseMatrix Y, SparseMatrix YA, JacobiMap jmap, size_t n)
+  : 
+    Q(jmap.size(), n),
+    H(n,n),
+    ve(Y.n()*2),
+    dve(jmap.size()),
+    ps(Y.n()*2),
+    pc(Y.n()*2),
+    dp(jmap.size()),
+    dv0(jmap.size()),
+    dr0(jmap.size()),
+    qdp(n),
+    qdv(n),
+    Y(Y), YA(YA), jmap(jmap)
+{ }
+
 double NKPF::g(size_t i) { return Y(i,i)*cos(YA(i,i)); }
 double NKPF::b(size_t i) { return Y(i,i)*sin(YA(i,i)); }
 
@@ -115,7 +133,7 @@ double NKPF::dq_dv(size_t i, size_t j)
   return -v(j) * v(i) * Y(i,j) * sin(YA(i,j) + va(j) - va(i));
 }
 
-double NKPF::v(size_t i) { return ve( pvpq_maps[i].pv ); }
-double NKPF::va(size_t i) { return ve( pvpq_maps[i].pq ); }
-double NKPF::dv(size_t i) { return dve( pvpq_maps[i].pv ); }
-double NKPF::dva(size_t i) { return dve( pvpq_maps[i].pq ); }
+double NKPF::v(size_t i) { return ve( jmap.map[i].j0 ); }
+double NKPF::va(size_t i) { return ve( jmap.map[i].j1 ); }
+double NKPF::dv(size_t i) { return dve( jmap.map[i].j0 ); }
+double NKPF::dva(size_t i) { return dve( jmap.map[i].j1 ); }

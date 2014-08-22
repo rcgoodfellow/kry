@@ -845,9 +845,19 @@ Bus & kry::input::psse::Source::findBus(ulong number)
 void kry::input::psse::Source::assignSystemIds()
 {
   uint seq{0};
+  size_t dva_count{0}, dv_count{0};
   for(auto &b : buses)
   {
     b.sid = seq++;
+    if(b.type == 2)
+    {
+      b.dva_idx = dva_count++;
+    }
+    if(b.type == 1)
+    {
+      b.dva_idx = dva_count++;
+      b.dv_idx = dv_count++;
+    }
   }
 
   for(Line &l : lines)
@@ -868,100 +878,17 @@ void kry::input::psse::Source::assignSystemIds()
   }
 }
 
-/*
-GridSpace::Grid kry::input::psse::Source::toGrid()
+JacobiMap kry::input::psse::Source::jmap()
 {
-  vector<GridSpace::Bus> g_buses{};
-  g_buses.reserve(buses.size());
-  vector<GridSpace::Load> g_loads{};
-  g_loads.reserve(loads.size());
-  vector<GridSpace::Generator> g_generators{};
-  g_generators.reserve(gens.size());
-  vector<GridSpace::Line> g_lines{};
-  g_lines.reserve(lines.size());
-  vector<GridSpace::Transformer> g_transformers{};
-  g_transformers.reserve(transformers.size());
-  
-  ulong seq{0};
-  for(auto &b : buses)
+  JacobiMap jm;
+  for(Bus &b : buses)
   {
-    GridSpace::BusType bt;
-    switch(b.type)
-    {
-        case 1 : bt = GridSpace::BusType::Load; break;
-        case 2 : bt = GridSpace::BusType::Generator; break;
-        case 3 : bt = GridSpace::BusType::Slack; break;
-        case 4 : bt = GridSpace::BusType::Isolated; break;
-        default:
-        {
-            stringstream ss{};
-            ss << "Unknown bus type `" << b.type << "` for bus with number "
-            << b.number;
-            throw runtime_error{ss.str()};
-        }
-    }
-    
-    GridSpace::Bus bus{bt, seq};
-    b.sid = seq++;
-    bus.voltage = b.v;
-    bus.shunt_y = b.y;
-    bus.name = b.name;
-    bus.bus_type = bt;
-    g_buses.push_back(bus);
+    jm.j0_sz = std::max(b.dva_idx, jm.j0_sz);
+    jm.j1_sz = std::max(b.dv_idx, jm.j1_sz);
+    jm.map.push_back({b.dva_idx, b.dv_idx});
   }
-  
-  seq = 0;
-  for(auto &l : loads)
-  {
-      Bus &b = findBus(l.number);
-      GridSpace::Load load{seq++, b.sid};
-      load.power = l.pql;
-      g_loads.push_back(load);
-  }
-  
-  seq = 0;
-  for(auto &gn : gens)
-  {
-      Bus &b = findBus(gn.number);
-      GridSpace::Generator gen{seq++, b.sid};
-      gen.power = gn.p;
-      g_generators.push_back(gen);
-  }
-  
-  seq = 0;
-  for(auto &l : lines)
-  {
-      Bus &i = findBus(l.i),
-          &j = findBus(l.j);
-      GridSpace::Line line{i.sid, j.sid, l.z, l.b};
-      line.shunt_i = l.yi;
-      line.shunt_j = l.yj;
-      g_lines.push_back(line);
-      
-  }
-  
-  seq = 0;
-  for(auto &t : transformers)
-  {
-      Bus &i = findBus(t.i),
-          &j = findBus(t.j);
-      
-      double tr = t.windv2 / t.windv1;
-      GridSpace::Transformer transformer{i.sid, j.sid, t.z12, tr};
-      g_transformers.push_back(transformer);
-
-  }
-  
-  GridSpace::Grid
-  g{std::move(g_buses),
-    std::move(g_loads),
-    std::move(g_generators),
-    std::move(g_lines),
-    std::move(g_transformers)};
-  
-  return std::move(g);
+  return jm;
 }
-*/
 
 std::vector<double> kry::input::psse::Source::staticBusVoltageMagnitudes()
 {

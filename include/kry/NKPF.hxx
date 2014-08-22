@@ -17,13 +17,21 @@ namespace kry
 {
 
 class NKPF;
-struct pvpq_map;
+struct jidx;
 
-struct pvpq_map { size_t pv, pq; };
+struct jidx { size_t j0, j1; };
+struct JacobiMap
+{
+  size_t j0_sz, j1_sz;
+  std::vector<jidx> map;
+  size_t size();
+};
 
 class NKPF
 {
   public:
+
+    NKPF(SparseMatrix Y, SparseMatrix YA, JacobiMap jmap, size_t n);
     
     Matrix Q, //Subspace Projector
            H; //Hessenburg Reduction
@@ -32,7 +40,7 @@ class NKPF
            dve, //voltage delta estimate
            ps,  //scheduled power
            pc,  //calculated power
-           dp,  //power delta (Ps - Pc)
+           dp,  //power delta
            dv0, //voltage delta initial guess
            dr0, //initial residual of the Jacobean system
            qdp, //projected power delta
@@ -41,7 +49,7 @@ class NKPF
     SparseMatrix Y,  //admittance matrix magnitudes
                  YA; //admittance matrix angles
     
-    std::vector<pvpq_map> pvpq_maps; //map bus indices onto pv and pq indices
+    JacobiMap jmap; //map bus indices onto Jacobi indices
 
     //the power flow equations
     double p(size_t), q(size_t); 

@@ -4,6 +4,7 @@
 using std::cout;
 using std::endl;
 using std::array;
+using std::vector;
 
 using namespace kry;
 
@@ -13,6 +14,7 @@ TEST(ieee18, go)
   cout << muffin14.basicReport() << endl;
 
   array<SparseMatrix, 2> YY = input::psse::ymatrix(muffin14);
+  JacobiMap jmap = muffin14.jmap();
 
   cout << "Y:" << endl;
   cout << YY[0] << endl;

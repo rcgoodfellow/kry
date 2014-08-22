@@ -11,6 +11,7 @@
 
 #include "Common.hh"
 #include "kry/Math.hxx"
+#include "NKPF.hxx"
 
 #include <sstream>
 #include <iostream>
@@ -35,6 +36,7 @@ struct Bus
     : number{number}, base_kv{base_kv}, type{type}, y{y}, v{v} {}
     
     ulong number, sid{}, line_no;
+    size_t dva_idx, dv_idx;
     string name{};
     double base_kv;
     unsigned short type, area{}, zone{}, owner{};
@@ -161,14 +163,16 @@ struct Source
     std::vector<double> pSch();
     std::vector<double> qSch();
 
+    JacobiMap jmap();
+
     //std::unique_ptr<Model::Protocol::PGrid> getPGrid();
     //std::unique_ptr<Model::Protocol::DGrid> getDGrid();
     
 private:
     void computeLayout();
     void resolveTransfomerIndicies();
-    void parseHeader();
     void parseElements();
+    void parseHeader();
     void parseBus(ulong idx);
     void parseLoad(ulong idx);
     void parseGen(ulong idx);
