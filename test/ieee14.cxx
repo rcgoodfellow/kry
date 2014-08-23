@@ -13,12 +13,23 @@ TEST(ieee18, go)
   input::psse::Source muffin14("ieee14.psse");
   cout << muffin14.basicReport() << endl;
 
-  array<SparseMatrix, 2> YY = input::psse::ymatrix(muffin14);
-  JacobiMap jmap = muffin14.jmap();
-
+  array<SparseMatrix, 2> YY = muffin14.ymatrix();
   cout << "Y:" << endl;
   cout << YY[0] << endl;
 
   cout << "YA:" << endl;
   cout << YY[1] << endl;
+
+  JacobiMap jmap = muffin14.jmap();
+
+  //flat start
+  Vector initial = Vector::Zero(14*2);
+  for(size_t i=0; i<14; ++i) { initial(i) = 1; }
+  for(size_t i=14; i<14*2; ++i) { initial(i) = 1; }
+
+  Vector ps = muffin14.psch();
+
+  NKPF nkpf(YY[0], YY[1], jmap, 14, initial, ps);
+  nkpf();
 }
+

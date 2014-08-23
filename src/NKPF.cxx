@@ -12,16 +12,21 @@
 
 using namespace kry;
 
+jidx::jidx(int j0, int j1) : j0{j0}, j1{j1} {}
+
 size_t JacobiMap::size() { return j0_sz + j1_sz; }
 
-NKPF::NKPF(SparseMatrix Y, SparseMatrix YA, JacobiMap jmap, size_t n)
+NKPF::NKPF(SparseMatrix Y, SparseMatrix YA, JacobiMap jmap, size_t n,
+    Vector initial, Vector ps)
   : 
+    N(Y.m()),
+    n(n),
     Q(jmap.size(), n),
     H(n,n),
-    ve(Y.n()*2),
+    ve(initial),
     dve(jmap.size()),
-    ps(Y.n()*2),
-    pc(Y.n()*2),
+    ps(ps),
+    pc(N*2),
     dp(jmap.size()),
     dv0(jmap.size()),
     dr0(jmap.size()),
@@ -133,7 +138,39 @@ double NKPF::dq_dv(size_t i, size_t j)
   return -v(j) * v(i) * Y(i,j) * sin(YA(i,j) + va(j) - va(i));
 }
 
-double NKPF::v(size_t i) { return ve( jmap.map[i].j0 ); }
-double NKPF::va(size_t i) { return ve( jmap.map[i].j1 ); }
+double NKPF::v(size_t i) { return ve(i); }
+double NKPF::va(size_t i) { return ve(i); }
 double NKPF::dv(size_t i) { return dve( jmap.map[i].j0 ); }
 double NKPF::dva(size_t i) { return dve( jmap.map[i].j1 ); }
+
+void NKPF::compute_pc()
+{
+  for(size_t i=0, ii=N; i<pc.n()/2; ++i, ++ii) 
+  { 
+    pc(i) = p(i); 
+    pc(ii) = q(i);
+  }
+}
+
+void NKPF::compute_dp()
+{
+  size_t jn = jmap.j0_sz;
+  for(size_t i=0; i<N; ++i)
+  {
+    jidx j = jmap.map[i];
+    if(j.j0 != -1) { dp(j.j0) = ps(i) - pc(i); }
+    if(j.j1 != -1) { dp(jn + j.j1) = ps(N + i) - pc(N + i); }
+  }
+}
+
+//compute ---------------------------------------------------------------------
+NKPF & NKPF::operator()()
+{
+  std::cout << "ps:" << ps << std::endl;
+  compute_pc();
+  std::cout << "pc:" << pc << std::endl;
+  compute_dp();
+  std::cout << "dp:" << dp << std::endl;
+
+  return *this;
+}

@@ -19,10 +19,15 @@ namespace kry
 class NKPF;
 struct jidx;
 
-struct jidx { size_t j0, j1; };
+struct jidx 
+{ 
+  jidx(int j0, int j1);
+
+  int j0{-1}, j1{-1}; 
+};
 struct JacobiMap
 {
-  size_t j0_sz, j1_sz;
+  size_t j0_sz{0}, j1_sz{0};
   std::vector<jidx> map;
   size_t size();
 };
@@ -31,8 +36,11 @@ class NKPF
 {
   public:
 
-    NKPF(SparseMatrix Y, SparseMatrix YA, JacobiMap jmap, size_t n);
-    
+    NKPF(SparseMatrix Y, SparseMatrix YA, JacobiMap jmap, size_t n, 
+        Vector initial, Vector ps);
+  
+    size_t N, n; //system size, projected size
+
     Matrix Q, //Subspace Projector
            H; //Hessenburg Reduction
 
@@ -79,7 +87,11 @@ class NKPF
 
     //conductance and susceptance per bus
     double g(size_t), b(size_t);
-     
+
+    void compute_pc();
+    void compute_dp();
+
+    NKPF & operator()();
 };
 
 }

@@ -36,7 +36,7 @@ struct Bus
     : number{number}, base_kv{base_kv}, type{type}, y{y}, v{v} {}
     
     ulong number, sid{}, line_no;
-    size_t dva_idx, dv_idx;
+    int dva_idx{-1}, dv_idx{-1};
     string name{};
     double base_kv;
     unsigned short type, area{}, zone{}, owner{};
@@ -49,6 +49,7 @@ struct Load
     : number{number}, status{status}, pql{power} {}
     
     ulong number, sid{};
+    size_t bsid;
     string id{};
     unsigned short status, area{}, zone{}, owner{};
     complex pql, ipq{}, ypq{};
@@ -60,6 +61,7 @@ struct Gen
     : number{number}, status{status}, p{power} {}
     
     ulong number, ireg{}, sid{};
+    size_t bsid;
     string id{};
     double qt{}, qb{}, vs{}, mbase{}, gtap{}, rmpct{}, pt{}, pb{}, fi{};
     unsigned short status, oi{};
@@ -164,6 +166,8 @@ struct Source
     std::vector<double> qSch();
 
     JacobiMap jmap();
+    std::array<SparseMatrix,2> ymatrix();
+    Vector psch();
 
     //std::unique_ptr<Model::Protocol::PGrid> getPGrid();
     //std::unique_ptr<Model::Protocol::DGrid> getDGrid();
@@ -197,7 +201,6 @@ private:
     
 };
 
-std::array<SparseMatrix,2> ymatrix(const Source &);
 
 
 }}} //namespace kry::input::psse

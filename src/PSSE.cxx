@@ -872,10 +872,10 @@ void kry::input::psse::Source::assignSystemIds()
     t.sj = findBus(t.j).sid;
   }
 
-  for(FixedShunt &s : shunts)
-  {
-    s.si = findBus(s.i).sid;
-  }
+  for(FixedShunt &s : shunts) { s.si = findBus(s.i).sid; }
+
+  for(Load &l : loads) { l.bsid = findBus(l.number).sid; }
+  for(Gen &g : gens) { g.bsid = findBus(g.number).sid; }
 }
 
 JacobiMap kry::input::psse::Source::jmap()
@@ -883,8 +883,8 @@ JacobiMap kry::input::psse::Source::jmap()
   JacobiMap jm;
   for(Bus &b : buses)
   {
-    jm.j0_sz = std::max(b.dva_idx, jm.j0_sz);
-    jm.j1_sz = std::max(b.dv_idx, jm.j1_sz);
+    jm.j0_sz = std::max(b.dva_idx, (int)jm.j0_sz);
+    jm.j1_sz = std::max(b.dv_idx, (int)jm.j1_sz);
     jm.map.push_back({b.dva_idx, b.dv_idx});
   }
   return jm;
@@ -973,15 +973,34 @@ size_t compute_max_node_valence(const Source &s)
 
 }
 
-std::array<SparseMatrix, 2> kry::input::psse::ymatrix(const Source &s)
+Vector Source::psch()
 {
-  size_t z = compute_max_node_valence(s); 
-  size_t n = s.buses.size();
+  size_t n = buses.size();
+  Vector ps = Vector::Zero(n*2);  
+
+  for(Gen &g : gens)
+  {
+    ps(g.bsid) += g.p.real();
+    ps(g.bsid+n) += g.p.imag();
+  }
+  for(Load &l : loads)
+  {
+    ps(l.bsid) -= l.pql.real();
+    ps(l.bsid+n) -= l.pql.imag();
+  }
+
+  return ps;
+}
+
+std::array<SparseMatrix, 2> Source::ymatrix()
+{
+  size_t z = compute_max_node_valence(*this); 
+  size_t n = buses.size();
 
   SparseMatrix  Y(n, n, z),
                YA(n, n, z);
 
-  for(const Line &l : s.lines)
+  for(const Line &l : lines)
   {
     complex y_i_diag = std::polar(Y(l.si,l.si), YA(l.si,l.si));
     complex y_j_diag = std::polar(Y(l.sj,l.sj), YA(l.sj,l.sj));
@@ -997,7 +1016,7 @@ std::array<SparseMatrix, 2> kry::input::psse::ymatrix(const Source &s)
     YA(l.si, l.sj) = YA(l.sj, l.si) = -arg(y);
   }
 
-  for(const Transformer &t : s.transformers)
+  for(const Transformer &t : transformers)
   {
     complex y_i_diag = std::polar(Y(t.si,t.si), YA(t.si,t.si));
     complex y_j_diag = std::polar(Y(t.sj,t.sj), YA(t.sj,t.sj));
@@ -1017,7 +1036,7 @@ std::array<SparseMatrix, 2> kry::input::psse::ymatrix(const Source &s)
     YA(t.sj, t.si) = -tr * arg(y);
   }
 
-  for(const FixedShunt &s : s.shunts)
+  for(const FixedShunt &s : shunts)
   {
     complex y = std::polar(Y(s.si,s.si), YA(s.si,s.si));
     std::cout << "sb" << s.b << std::endl;
