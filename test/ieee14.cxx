@@ -24,8 +24,12 @@ TEST(ieee18, go)
 
   //flat start
   Vector initial = Vector::Zero(14*2);
-  for(size_t i=0; i<14; ++i) { initial(i) = 1; }
   for(size_t i=14; i<14*2; ++i) { initial(i) = 1; }
+  initial(14+0) = 1.06;
+  initial(14+1) = 1.045;
+  initial(14+2) = 1.01;
+  initial(14+5) = 1.07;
+  initial(14+7) = 1.09;
 
   Vector ps = muffin14.psch();
 

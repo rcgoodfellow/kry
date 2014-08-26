@@ -55,6 +55,8 @@ class NKPF
            qdv, //projected voltage delta
            Jdv; //Jacobi approximation
 
+    double dr0_norm;
+
     SparseMatrix Y,  //admittance matrix magnitudes
                  YA; //admittance matrix angles
     

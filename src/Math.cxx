@@ -271,7 +271,7 @@ Vector mul_mv_t(Matrix A, Vector x, size_t cbegin, size_t cend)
 
   size_t 
     dpt = max(A.m()*n/RT::thread_count(), RT::MEPT), //data per thd
-    rpt = ceil(dpt/A.m()),                               //row per thd
+    rpt = ceil(dpt/(double)A.m()),                               //row per thd
     nt = ceil(n/(double)rpt);                    //# of thds
 
   LOG_KVP(dpt);
@@ -319,7 +319,7 @@ Vector mul_mv(Matrix A, Vector x, size_t cbegin, size_t cend)
 
   size_t 
     dpt = max(A.m()*n/RT::thread_count(), RT::MEPT), //data per thd
-    rpt = ceil(dpt/n),                               //row per thd
+    rpt = ceil(dpt/(double)n),                               //row per thd
     nt = ceil(A.m()/(double)rpt);                    //# of thds
 
   LOG_KVP(dpt);

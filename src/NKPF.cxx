@@ -21,8 +21,8 @@ NKPF::NKPF(SparseMatrix Y, SparseMatrix YA, JacobiMap jmap, size_t n,
   : 
     N(Y.m()),
     n(n),
-    Q(jmap.size(), n),
-    H(n,n),
+    Q(Matrix::Zero(jmap.size(), n+1)),
+    H(Matrix::Zero(n,n)),
     ve(initial),
     dve(jmap.size()),
     ps(ps),
@@ -73,12 +73,14 @@ double NKPF::jdp(size_t i)
 
 double NKPF::jdp_va(size_t i)
 {
-  double ods{0}, s{0};
+  double c{0}, ods{0}, s{0};
   for(size_t k=0; k<Y.r(i); ++k)
   {
     size_t j = Y.c(i, k);
-    ods += dp_dva(i, j); //implicitly compute diagonal coefficient
-    s += ods * dva(j);
+    if(j == i) continue;
+    c = dp_dva(i, j); 
+    ods += c; //implicitly compute diagonal coefficient
+    s += c * dva(j);
   }
   s += -ods * dva(i);
   return s;
@@ -90,6 +92,7 @@ double NKPF::jdp_v(size_t i)
   for(size_t k=0; k<Y.r(i); ++k)
   {
     size_t j = Y.c(i,k);
+    if(j == i) continue;
     ods += dp_dv(i, j);
     s += ods * dv(j);
   }
@@ -118,6 +121,7 @@ double NKPF::jdq_va(size_t i)
   for(size_t k=0; k<Y.r(i); ++k)
   {
     size_t j = Y.c(i,k);
+    if(j == i) continue;
     ods += dq_dva(i,j);
     s += ods * dva(j);
   }
@@ -131,6 +135,7 @@ double NKPF::jdq_v(size_t i)
   for(size_t k=0; k<Y.r(i); ++k)
   {
     size_t j = Y.c(i,k);
+    if(j == i) continue;
     ods += dq_dv(i,j);
     s += ods * dv(j);
   }
@@ -148,18 +153,18 @@ double NKPF::dq_dv(size_t i, size_t j)
   return -v(j) * v(i) * Y(i,j) * sin(YA(i,j) + va(j) - va(i));
 }
 
-double NKPF::v(size_t i) { return ve(i); }
+double NKPF::v(size_t i) { return ve(i+N); }
 double NKPF::va(size_t i) { return ve(i); }
 double NKPF::dv(size_t i) 
 { 
-  int idx = jmap.map[i].j0;
+  int idx = jmap.map[i].j1;
   if(idx == -1) return 0;
-  return dve( idx ); 
+  return dve( jmap.j0_sz + idx ); 
 }
 
 double NKPF::dva(size_t i) 
 { 
-  int idx = jmap.map[i].j1;
+  int idx = jmap.map[i].j0;
   if(idx == -1) return 0;
   return dve( idx ); 
 }
@@ -187,9 +192,44 @@ void NKPF::compute_dp()
 void NKPF::compute_dve()
 {
   dve = Vector::Zero(dve.n());
-  for(size_t i=0; i<dve.n(); ++i) { dve(i) = 1; }
+  for(size_t i=0; i<dve.n(); ++i) { dve(i) = 0; }
   compute_Jdv();  
   std::cout << "Jdv:" << Jdv << std::endl;
+
+  dr0 = dp - Jdv;
+  std::cout << "dr0:" << dr0 << std::endl;
+
+  dr0_norm = norm(dr0);
+  std::cout << "dr0_norm:" << dr0_norm << std::endl;
+
+  dr0 /= dr0_norm;
+  std::cout << "dr0:" << dr0 << std::endl;
+
+  dve = dr0;
+
+  Q.C(0) = dr0;
+  std::cout << "Q:" << Q << std::endl;
+
+  for(size_t i=0; i<n; ++i)
+  {
+    LOG_FUNC();
+    compute_Jdv();
+    Q.C(i+1) = Jdv;
+    std::cout << "Jdv:" << Jdv << std::endl;
+
+    H.C(i) = T(Q.C(0,i+1)) * Q.C(i+1);
+    Q.C(i+1) -= Q.C(0,i+1) * H.C(i)(0,i+1);
+
+    Vector x = Q.C(i+1);
+    double xn = norm(x);
+    H.C(i)(i+1) = xn;
+    LOG_KVP(i);
+    LOG_KVP(xn);
+    dve = x / xn;
+    Q.C(i+1) = dve;
+  }
+  std::cout << "Q:" << Q << std::endl;
+  std::cout << "H:" << H << std::endl;
 }
 
 void NKPF::compute_Jdv()
