@@ -32,6 +32,7 @@ NKPF::NKPF(SparseMatrix Y, SparseMatrix YA, JacobiMap jmap, size_t n,
     dr0(jmap.size()),
     qdp(n),
     qdv(n),
+    Jdv(jmap.size()),
     Y(Y), YA(YA), jmap(jmap)
 { }
 
@@ -61,7 +62,14 @@ double NKPF::q(size_t i)
 }
 
 //real-power gradient ---------------------------------------------------------
-double NKPF::jdp(size_t i) { return jdp_va(i) + jdp_v(i); }
+double NKPF::jdp(size_t i) 
+{ 
+  double val = jdp_va(i) + jdp_v(i); 
+
+  if(val != val) throw std::runtime_error("unreal jacobi response");
+
+  return val;
+}
 
 double NKPF::jdp_va(size_t i)
 {
@@ -91,12 +99,14 @@ double NKPF::jdp_v(size_t i)
 
 double NKPF::dp_dva(size_t i, size_t j)
 {
-  return -v(i) * v(j) * Y(i,j) * sin(YA(i,j) + va(j) - va(i));
+  double val = -v(i) * v(j) * Y(i,j) * sin(YA(i,j) + va(j) - va(i));
+  return val;
 }
 
 double NKPF::dp_dv(size_t i, size_t j)
 {
-  return v(i) * v(j) * Y(i,j) * cos(YA(i,j) + va(j) - va(i));
+  double val = v(i) * v(j) * Y(i,j) * cos(YA(i,j) + va(j) - va(i));
+  return val;
 }
 
 //reactive-power gradient -----------------------------------------------------
@@ -140,8 +150,19 @@ double NKPF::dq_dv(size_t i, size_t j)
 
 double NKPF::v(size_t i) { return ve(i); }
 double NKPF::va(size_t i) { return ve(i); }
-double NKPF::dv(size_t i) { return dve( jmap.map[i].j0 ); }
-double NKPF::dva(size_t i) { return dve( jmap.map[i].j1 ); }
+double NKPF::dv(size_t i) 
+{ 
+  int idx = jmap.map[i].j0;
+  if(idx == -1) return 0;
+  return dve( idx ); 
+}
+
+double NKPF::dva(size_t i) 
+{ 
+  int idx = jmap.map[i].j1;
+  if(idx == -1) return 0;
+  return dve( idx ); 
+}
 
 void NKPF::compute_pc()
 {
@@ -163,6 +184,27 @@ void NKPF::compute_dp()
   }
 }
 
+void NKPF::compute_dve()
+{
+  dve = Vector::Zero(dve.n());
+  for(size_t i=0; i<dve.n(); ++i) { dve(i) = 1; }
+  compute_Jdv();  
+  std::cout << "Jdv:" << Jdv << std::endl;
+}
+
+void NKPF::compute_Jdv()
+{
+  Jdv = Vector::Zero(Jdv.n());
+  for(size_t i=0; i<N; ++i) 
+  { 
+    int idx = jmap.map[i].j0;
+    if(idx != -1) Jdv(idx) = jdp(i); 
+
+    idx = jmap.j0_sz + jmap.map[i].j1;
+    if(idx != -1) Jdv(idx) = jdq(i);
+  }
+}
+
 //compute ---------------------------------------------------------------------
 NKPF & NKPF::operator()()
 {
@@ -171,6 +213,7 @@ NKPF & NKPF::operator()()
   std::cout << "pc:" << pc << std::endl;
   compute_dp();
   std::cout << "dp:" << dp << std::endl;
+  compute_dve();
 
   return *this;
 }

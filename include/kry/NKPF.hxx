@@ -52,7 +52,8 @@ class NKPF
            dv0, //voltage delta initial guess
            dr0, //initial residual of the Jacobean system
            qdp, //projected power delta
-           qdv; //projected voltage delta
+           qdv, //projected voltage delta
+           Jdv; //Jacobi approximation
 
     SparseMatrix Y,  //admittance matrix magnitudes
                  YA; //admittance matrix angles
@@ -90,6 +91,8 @@ class NKPF
 
     void compute_pc();
     void compute_dp();
+    void compute_dve();
+    void compute_Jdv();
 
     NKPF & operator()();
 };
