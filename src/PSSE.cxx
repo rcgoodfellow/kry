@@ -883,8 +883,8 @@ JacobiMap kry::input::psse::Source::jmap()
   JacobiMap jm;
   for(Bus &b : buses)
   {
-    jm.j0_sz = std::max(b.dva_idx, (int)jm.j0_sz);
-    jm.j1_sz = std::max(b.dv_idx, (int)jm.j1_sz);
+    jm.j0_sz = std::max(b.dva_idx+1, (int)jm.j0_sz);
+    jm.j1_sz = std::max(b.dv_idx+1, (int)jm.j1_sz);
     jm.map.push_back({b.dva_idx, b.dv_idx});
   }
   return jm;
@@ -1009,11 +1009,11 @@ std::array<SparseMatrix, 2> Source::ymatrix()
     y_j_diag += y + complex(0, 0.5*l.b);
     Y(l.si, l.si) = abs(y_i_diag);
     Y(l.sj, l.sj) = abs(y_j_diag);
-    Y(l.si, l.sj) = Y(l.sj, l.si) = -abs(y);
+    Y(l.si, l.sj) = Y(l.sj, l.si) = abs(-y);
 
     YA(l.si, l.si) = arg(y_i_diag);
     YA(l.sj, l.sj) = arg(y_j_diag);
-    YA(l.si, l.sj) = YA(l.sj, l.si) = -arg(y);
+    YA(l.si, l.sj) = YA(l.sj, l.si) = arg(-y);
   }
 
   for(const Transformer &t : transformers)

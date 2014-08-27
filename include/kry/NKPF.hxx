@@ -58,7 +58,8 @@ class NKPF
     double dr0_norm;
 
     SparseMatrix Y,  //admittance matrix magnitudes
-                 YA; //admittance matrix angles
+                 YA, //admittance matrix angles
+                 J;  //Jacobi
     
     JacobiMap jmap; //map bus indices onto Jacobi indices
 
@@ -95,6 +96,10 @@ class NKPF
     void compute_dp();
     void compute_dve();
     void compute_Jdv();
+
+    void build_Jacobi();
+    void j11();
+    void j22();
 
     NKPF & operator()();
 };

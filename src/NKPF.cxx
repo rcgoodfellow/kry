@@ -33,7 +33,9 @@ NKPF::NKPF(SparseMatrix Y, SparseMatrix YA, JacobiMap jmap, size_t n,
     qdp(n),
     qdv(n),
     Jdv(jmap.size()),
-    Y(Y), YA(YA), jmap(jmap)
+    Y(Y), YA(YA), 
+    J(jmap.size(), jmap.size(), jmap.size()),
+    jmap(jmap)
 { }
 
 double NKPF::g(size_t i) { return Y(i,i)*cos(YA(i,i)); }
@@ -83,18 +85,20 @@ double NKPF::jdp_va(size_t i)
     s += c * dva(j);
   }
   s += -ods * dva(i);
+  std::cout << "J11(" << i << ") = " << ods << std::endl;
   return s;
 }
 
 double NKPF::jdp_v(size_t i)
 {
-  double ods{0}, s{0};
+  double c{0}, ods{0}, s{0};
   for(size_t k=0; k<Y.r(i); ++k)
   {
     size_t j = Y.c(i,k);
     if(j == i) continue;
-    ods += dp_dv(i, j);
-    s += ods * dv(j);
+    c = dp_dv(i, j);
+    ods += c;
+    s += c * dv(j);
   }
   s += (ods + 2*pow(v(i),2)*g(i)) * dv(i);
   return s;
@@ -117,13 +121,14 @@ double NKPF::jdq(size_t i) { return jdq_va(i) + jdq_v(i); }
 
 double NKPF::jdq_va(size_t i)
 {
-  double ods{0}, s{0};
+  double c{0}, ods{0}, s{0};
   for(size_t k=0; k<Y.r(i); ++k)
   {
     size_t j = Y.c(i,k);
     if(j == i) continue;
-    ods += dq_dva(i,j);
-    s += ods * dva(j);
+    c = dq_dva(i,j);
+    ods += c;
+    s += c * dva(j);
   }
   s += -ods * dva(i);
   return s;
@@ -131,15 +136,18 @@ double NKPF::jdq_va(size_t i)
 
 double NKPF::jdq_v(size_t i)
 {
-  double ods{0}, s{0};
+  double c{0}, ods{0}, s{0};
   for(size_t k=0; k<Y.r(i); ++k)
   {
     size_t j = Y.c(i,k);
     if(j == i) continue;
-    ods += dq_dv(i,j);
-    s += ods * dv(j);
+    c = dq_dv(i,j);
+    ods += c;
+    s += c * dv(j);
   }
-  s += (-ods - 2*pow(v(i),2) * b(i)) * dv(i); 
+  double coeff = (-ods - 2*pow(v(i),2) * b(i));
+  s +=  coeff * dv(i); 
+  std::cout << "J22(" << i << ") = " << coeff << std::endl;
   return s;
 }
 
@@ -189,10 +197,66 @@ void NKPF::compute_dp()
   }
 }
 
+void NKPF::j11()
+{
+  for(size_t i=0; i<N; ++i)
+  {
+    int _i = jmap.map[i].j0;
+    if(_i == -1) continue;
+   
+    double ii{0};
+    for(size_t k=0; k<Y.r(i); ++k)
+    {
+      size_t j = Y.c(i,k);
+      if(i == j) continue;
+      double t = dp_dva(i,j);
+      ii += t;
+      int _j = jmap.map[j].j0;
+      if(_j == -1) continue;
+
+      J(_i,_j) = t;
+    }
+    J(_i,_i) = -ii;
+  }
+}
+
+void NKPF::j22()
+{
+  for(size_t i=0; i<N; ++i)
+  {
+    int _i = jmap.map[i].j1;
+    if(_i == -1) continue;
+
+    double ii{0};
+    for(size_t k=0; k<Y.r(i); ++k)
+    {
+      size_t j = Y.c(i,k);
+      if(i == j) continue;
+      double t = dq_dv(i,j);
+      ii += t;
+      int _j = jmap.map[j].j1;
+      if(_j == -1) continue;
+
+      J(jmap.j0_sz + _i, jmap.j0_sz + _j) = t;
+    }
+    size_t iidx = jmap.j0_sz + _i;
+    J(jmap.j0_sz + _i, jmap.j0_sz + _i) = -ii - 2*pow(v(i),2)*b(i);
+  }
+}
+
+void NKPF::build_Jacobi()
+{
+  j11();
+  j22();
+}
+
 void NKPF::compute_dve()
 {
   dve = Vector::Zero(dve.n());
-  for(size_t i=0; i<dve.n(); ++i) { dve(i) = 0; }
+  build_Jacobi();
+  std::cout << J << std::endl;
+
+  /*
   compute_Jdv();  
   std::cout << "Jdv:" << Jdv << std::endl;
 
@@ -219,6 +283,10 @@ void NKPF::compute_dve()
 
     H.C(i) = T(Q.C(0,i+1)) * Q.C(i+1);
     Q.C(i+1) -= Q.C(0,i+1) * H.C(i)(0,i+1);
+    
+    //Vector s = T(Q.C(0,i+1)) * Q.C(i+1);
+    //Q.C(i+1) -= Q.C(0,i+1) * s;
+    //H.C(i) += s;
 
     Vector x = Q.C(i+1);
     double xn = norm(x);
@@ -230,6 +298,7 @@ void NKPF::compute_dve()
   }
   std::cout << "Q:" << Q << std::endl;
   std::cout << "H:" << H << std::endl;
+  */
 }
 
 void NKPF::compute_Jdv()
@@ -240,8 +309,8 @@ void NKPF::compute_Jdv()
     int idx = jmap.map[i].j0;
     if(idx != -1) Jdv(idx) = jdp(i); 
 
-    idx = jmap.j0_sz + jmap.map[i].j1;
-    if(idx != -1) Jdv(idx) = jdq(i);
+    idx = jmap.map[i].j1;
+    if(idx != -1) Jdv(jmap.j0_sz + idx) = jdq(i);
   }
 }
 
