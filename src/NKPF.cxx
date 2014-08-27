@@ -240,7 +240,7 @@ void NKPF::j22()
       J(jmap.j0_sz + _i, jmap.j0_sz + _j) = t;
     }
     size_t iidx = jmap.j0_sz + _i;
-    J(jmap.j0_sz + _i, jmap.j0_sz + _i) = -ii - 2*pow(v(i),2)*b(i);
+    J(jmap.j0_sz + _i, jmap.j0_sz + _i) = ii - 2*pow(v(i),2)*b(i);
   }
 }
 

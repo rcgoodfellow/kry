@@ -1009,7 +1009,7 @@ std::array<SparseMatrix, 2> Source::ymatrix()
     y_j_diag += y + complex(0, 0.5*l.b);
     Y(l.si, l.si) = abs(y_i_diag);
     Y(l.sj, l.sj) = abs(y_j_diag);
-    Y(l.si, l.sj) = Y(l.sj, l.si) = abs(-y);
+    Y(l.si, l.sj) = Y(l.sj, l.si) = abs(y);
 
     YA(l.si, l.si) = arg(y_i_diag);
     YA(l.sj, l.sj) = arg(y_j_diag);
@@ -1027,8 +1027,8 @@ std::array<SparseMatrix, 2> Source::ymatrix()
 
     Y(t.si, t.si) = abs(y_i_diag);
     Y(t.sj, t.sj) = abs(y_j_diag);
-    Y(t.si, t.sj) = -tr * abs(y);
-    Y(t.sj, t.si) = -tr * abs(y);
+    Y(t.si, t.sj) = tr * abs(y);
+    Y(t.sj, t.si) = tr * abs(y);
     
     YA(t.si, t.si) = arg(y_i_diag);
     YA(t.sj, t.sj) = arg(y_j_diag);
