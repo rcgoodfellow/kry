@@ -989,6 +989,8 @@ Vector Source::psch()
     ps(l.bsid+n) -= l.pql.imag();
   }
 
+  ps /= base_mva;
+
   return ps;
 }
 
@@ -1032,14 +1034,13 @@ std::array<SparseMatrix, 2> Source::ymatrix()
     
     YA(t.si, t.si) = arg(y_i_diag);
     YA(t.sj, t.sj) = arg(y_j_diag);
-    YA(t.si, t.sj) = -tr * arg(y);
-    YA(t.sj, t.si) = -tr * arg(y);
+    YA(t.si, t.sj) = arg(-tr*y);
+    YA(t.sj, t.si) = arg(-tr*y);
   }
 
   for(const FixedShunt &s : shunts)
   {
     complex y = std::polar(Y(s.si,s.si), YA(s.si,s.si));
-    std::cout << "sb" << s.b << std::endl;
     y += complex(0, s.b);
     Y(s.si,s.si) = abs(y);
     YA(s.si,s.si) = arg(y);

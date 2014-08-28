@@ -5,22 +5,28 @@ using std::cout;
 using std::endl;
 using std::array;
 using std::vector;
+using std::fstream;
 
 using namespace kry;
 
 TEST(ieee18, go)
 {
-  input::psse::Source muffin14("ieee14.psse");
-  cout << muffin14.basicReport() << endl;
+  input::psse::Source ieee14_src("ieee14.psse");
+  
+  fstream fs("ieee14_basic_report.txt", fstream::out);
+  fs << ieee14_src.basicReport();
+  fs.close();
 
-  array<SparseMatrix, 2> YY = muffin14.ymatrix();
-  cout << "Y:" << endl;
-  cout << YY[0] << endl;
+  array<SparseMatrix, 2> YY = ieee14_src.ymatrix();
 
-  cout << "YA:" << endl;
-  cout << YY[1] << endl;
+  JacobiMap jmap = ieee14_src.jmap();
 
-  JacobiMap jmap = muffin14.jmap();
+  fs.open("Y.smatrix", fstream::out);
+  fs << YY[0];
+  fs.close();
+  fs.open("YA.smatrix", fstream::out);
+  fs << YY[1];
+  fs.close();
 
   //flat start
   Vector initial = Vector::Zero(14*2);
@@ -31,9 +37,13 @@ TEST(ieee18, go)
   initial(14+5) = 1.07;
   initial(14+7) = 1.09;
 
-  Vector ps = muffin14.psch();
+  Vector ps = ieee14_src.psch();
 
-  NKPF nkpf(YY[0], YY[1], jmap, 14, initial, ps);
+  std::cout << "ps: " << ps << endl;
+
+  size_t n = jmap.size();
+
+  NKPF nkpf(YY[0], YY[1], jmap, n, initial, ps);
   nkpf();
 }
 

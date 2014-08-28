@@ -48,33 +48,6 @@ T* alloc(size_t sz)
   return (T*)_mm_malloc(sizeof(T)*sz, KRY_DEFAULT_ALIGN);
 }
 
-#define BLU "\e[0;34m"
-#define RED "\e[0;31m"
-#define YEL "\e[0;33m"
-#define PRP "\e[0;35m"
-#define GRN "\e[0;32m"
-#define CYN "\e[0;36m"
-#define GRY "\e[0;30m"
-#define NRM "\e[0m"
-
-template<class T>
-void log_kvp(const char* key, T value)
-{
-  std::cout 
-    << GRN << key << GRY "="
-    << NRM << std::to_string(value)
-    << std::endl;
-}
-
-#ifdef DEBUG
-#define LOG_FUNC() printf("%s%s%s\n", BLU, __PRETTY_FUNCTION__, NRM);
-#define LOG(__X__) printf __X__
-#define LOG_KVP(__X__) log_kvp(#__X__, __X__)
-#else
-#define LOG_FUNC() ;;
-#define LOG(__X__) ;;
-#define LOG_KVP(__X__) ;;
-#endif
 
 class CountdownLatch
 {

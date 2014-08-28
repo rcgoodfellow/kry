@@ -12,6 +12,8 @@
 #define KRY_NKPF_HXX
 
 #include "kry/Math.hxx"
+#include <iostream>
+#include <fstream>
 
 namespace kry
 {
@@ -100,6 +102,8 @@ class NKPF
     void build_Jacobi();
     void j11();
     void j22();
+    void j21();
+    void j12();
 
     NKPF & operator()();
 };

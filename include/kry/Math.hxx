@@ -165,8 +165,9 @@ class SparseMatrix
     double get(size_t i, size_t j);
 
     size_t m() const, n() const, z() const;
-    size_t r(size_t i) const, c(size_t i, size_t j) const;
-    double v(size_t i, size_t j) const;
+    size_t r(size_t i) const;
+    size_t c(size_t i, size_t j) const, c(size_t k) const;
+    double v(size_t i, size_t j) const, v(size_t k) const;
 
   private:
     size_t _m, _n, _z;

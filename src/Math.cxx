@@ -448,7 +448,7 @@ ostream & kry::operator<<(ostream &o, const Matrix A)
   {
     for(size_t j=0; j<A.n(); ++j)
     {
-      o << A(i,j) << " ";
+      o << A(i,j) << ",";
     }
     o << std::endl;
   }
@@ -548,6 +548,10 @@ SparseMatrix::SparseMatrix(size_t m, size_t n, size_t z)
 {
   size_t *_rp = _r.get();
   for(size_t i=0; i<m; ++i){ _rp[i] = 0; }
+  size_t *_cp = _c.get();
+  for(size_t i=0; i<m*z; ++i){ _cp[i] = 111; }
+  double *_vp = _v.get();
+  for(size_t i=0; i<m*z; ++i){ _vp[i] = 0; }
 }
 
 SparseMatrix::SparseMatrix(size_t m, size_t n, size_t z,
@@ -643,7 +647,9 @@ size_t SparseMatrix::z() const { return _z; }
 
 size_t SparseMatrix::r(size_t i) const { return _r.get()[i]; }
 size_t SparseMatrix::c(size_t i, size_t j) const { return _c.get()[z()*i+j]; }
+size_t SparseMatrix::c(size_t k) const { return _c.get()[k]; }
 double SparseMatrix::v(size_t i, size_t j) const { return _v.get()[z()*i+j]; }
+double SparseMatrix::v(size_t k) const { return _v.get()[k]; }
 
 Vector kry::operator*(const SparseMatrix A, const Vector x)
 {
@@ -695,6 +701,7 @@ Vector kry::operator*(const SparseMatrix A, const Column c)
 
 ostream & kry::operator<<(ostream &o, SparseMatrix A)
 {
+  /*
   for(size_t i=0; i<A.m(); ++i)
   {
     for(size_t j=0; j<A.n(); ++j)
@@ -703,6 +710,17 @@ ostream & kry::operator<<(ostream &o, SparseMatrix A)
     }
     o << "\n";
   }
+  return o;
+  */
+  for(size_t i=0; i<A.m(); ++i) { o << A.r(i) << " "; }
+  o << std::endl;
+
+  for(size_t i=0; i<A.m()*A.z(); ++i) { o << A.c(i) << " "; }
+  o << std::endl;
+
+  for(size_t i=0; i<A.m()*A.z(); ++i) { o << A.v(i) << " "; }
+  o << std::endl;
+
   return o;
 }
 
