@@ -14,6 +14,7 @@
 #include "kry/Math.hxx"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 namespace kry
 {
@@ -106,6 +107,10 @@ class NKPF
     void j12();
 
     NKPF & operator()();
+
+    void update_ve();
+
+    std::string show_state();
 };
 
 }

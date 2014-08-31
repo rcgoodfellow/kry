@@ -39,8 +39,6 @@ TEST(ieee18, go)
 
   Vector ps = ieee14_src.psch();
 
-  std::cout << "ps: " << ps << endl;
-
   size_t n = jmap.size();
 
   NKPF nkpf(YY[0], YY[1], jmap, n, initial, ps);

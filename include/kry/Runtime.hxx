@@ -66,6 +66,41 @@ void log_kvp(const char* key, T value)
 #define LOG_KVP(__X__) ;;
 #endif
 
+template <class MatrixType>
+void log_matrix(const char* name, const MatrixType &M)
+{
+  std::string fn{name};
+  fn += ".matrix";
+  std::fstream fs(fn, std::fstream::out);
+  fs << M;
+  fs.close();
+}
+
+template <class VectorType>
+void log_vector(const char* name, const VectorType &v)
+{
+  std::string fn{name};
+  fn += ".vector";
+  std::fstream fs(fn, std::fstream::out);
+  fs << v;
+  fs.close();
+}
+
+template <class VectorType, class SuffixType>
+void log_vector(const char* name, SuffixType sx, const VectorType &v)
+{
+  std::string fn{name};
+  fn += std::to_string(sx) + ".vector";
+  std::fstream fs(fn, std::fstream::out);
+  fs << v;
+  fs.close();
+}
+
+#define LOG_MATRIX(__M__) log_matrix(#__M__, __M__)
+#define LOG_VECTOR(__V__) log_vector(#__V__, __V__)
+
+#define LOG_VECTOR_SX(__V__, __SX__) log_vector(#__V__, __SX__, __V__)
+
 class Worker
 {
   public:

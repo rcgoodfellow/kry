@@ -309,10 +309,10 @@ using std::endl;
 
 void NKPF::compute_dve()
 {
-  std::cout << "pc: " << pc << std::endl;
   dve = Vector::Zero(dve.n());
   build_Jacobi();
 
+  //initial residual
   dr0 = dp - J*dve;
   dr0_norm = norm(dr0);
   dr0 /= dr0_norm;
@@ -320,37 +320,37 @@ void NKPF::compute_dve()
 
   for(size_t i=0; i<jmap.size(); ++i)
   {
-    LOG_FUNC();
+    //next subspace vector
     Q.C(i+1) = J*Q.C(i);
 
+    //ortho
     H.C(i) = T(Q.C(0,i+1)) * Q.C(i+1);
     Q.C(i+1) -= Q.C(0,i+1) * H.C(i)(0,i+1);
     
+    //reortho
     //Vector s = T(Q.C(0,i+1)) * Q.C(i+1);
     //Q.C(i+1) -= Q.C(0,i+1) * s;
     //H.C(i) += s;
 
+    //unitary reduction
     Vector x = Q.C(i+1);
     double xn = norm(x);
     H.C(i)(i+1) = xn;
     LOG_KVP(i);
     LOG_KVP(xn);
-    //dve = x / xn;
+
+    //normo
     Q.C(i+1) = x / xn;
 
   }
 
-  std::fstream fs ("Q.matrix", std::fstream::out);
-  fs << Q;
-  fs.close();
+  LOG_MATRIX(Q);
+  LOG_MATRIX(H);
 
-  fs.open("H.matrix", std::fstream::out);
-  fs << H;
-  fs.close();
-
+  //power gradient projection
   qdp = Vector::Zero(qdp.n());
   qdp(0) = dr0_norm;
-
+  //rotate hessenburg reduction into triangular reduction
   for(size_t i=0; i<n-1; ++i)
   {
     Rotator r(H, i, i+1);
@@ -358,67 +358,31 @@ void NKPF::compute_dve()
     r.apply(qdp);
   }
 
-  fs.open("Ht.matrix", std::fstream::out);
-  fs << H;
-  fs.close();
-
+  LOG_MATRIX(H);
+  //solve reduced triangular system
   qdv = back_substitute(H, qdp);
-  std::cout << "qdv:" << qdv << endl; 
 
+  //compose voltage gradient as linear combination of krylov subspace and the
+  //projected voltage differential gradient
   dve = Q.C(0,n) * qdv;
-  std::cout << "dve:" << dve << endl;
-
-  std::cout << "dp:" << dp << endl;
 
 
-  //std::cout << "Q:" << endl << Q << std::endl;
-  //std::cout << "H:" << endl << H << std::endl;
+}
 
-  //std::cout << J << std::endl;
-
-  /*
-  compute_Jdv();  
-  std::cout << "Jdv:" << Jdv << std::endl;
-
-  dr0 = dp - Jdv;
-  std::cout << "dr0:" << dr0 << std::endl;
-
-  dr0_norm = norm(dr0);
-  std::cout << "dr0_norm:" << dr0_norm << std::endl;
-
-  dr0 /= dr0_norm;
-  std::cout << "dr0:" << dr0 << std::endl;
-
-  dve = dr0;
-
-  Q.C(0) = dr0;
-  std::cout << "Q:" << Q << std::endl;
-
-  for(size_t i=0; i<n; ++i)
+void NKPF::update_ve()
+{
+  for(size_t i=0; i<N; ++i)
   {
-    LOG_FUNC();
-    compute_Jdv();
-    Q.C(i+1) = Jdv;
-    std::cout << "Jdv:" << Jdv << std::endl;
-
-    H.C(i) = T(Q.C(0,i+1)) * Q.C(i+1);
-    Q.C(i+1) -= Q.C(0,i+1) * H.C(i)(0,i+1);
-    
-    //Vector s = T(Q.C(0,i+1)) * Q.C(i+1);
-    //Q.C(i+1) -= Q.C(0,i+1) * s;
-    //H.C(i) += s;
-
-    Vector x = Q.C(i+1);
-    double xn = norm(x);
-    H.C(i)(i+1) = xn;
-    LOG_KVP(i);
-    LOG_KVP(xn);
-    dve = x / xn;
-    Q.C(i+1) = dve;
+    jidx j = jmap.map[i];  
+    if(j.j0 != -1)
+    {
+      ve(i) += dve(j.j0);
+    }
+    if(j.j1 != -1)
+    {
+      ve(i+N) += dve(jmap.j0_sz + j.j1);
+    }
   }
-  std::cout << "Q:" << Q << std::endl;
-  std::cout << "H:" << H << std::endl;
-  */
 }
 
 void NKPF::compute_Jdv()
@@ -437,12 +401,32 @@ void NKPF::compute_Jdv()
 //compute ---------------------------------------------------------------------
 NKPF & NKPF::operator()()
 {
-  //std::cout << "ps:" << ps << std::endl;
-  compute_pc();
-  //std::cout << "pc:" << pc << std::endl;
-  compute_dp();
-  //std::cout << "dp:" << dp << std::endl;
-  compute_dve();
+  for(size_t i=0; i<4; ++i)
+  {
+    compute_pc();
+    compute_dp();
+    compute_dve();
+    update_ve();
+    LOG_VECTOR_SX(dve, i);
+    LOG_VECTOR_SX(ve, i);
+  }
+
+  cout << show_state() << endl;
 
   return *this;
+}
+
+std::string NKPF::show_state()
+{
+  std::stringstream ss;
+
+  for(size_t i=0; i<N; ++i)
+  {
+    ss << "[" << i << "] : "
+       << "(" << ve(i+N) 
+       << "," << ve(i) * 180.0/M_PI << ")"
+       << std::endl;
+  }
+
+  return ss.str();
 }
