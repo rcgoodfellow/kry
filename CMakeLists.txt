@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 2.8)
 project(libKrylov)
 
-set(CMAKE_CXX_COMPILER /usr/local/bin/clang++)
-set(CMAKE_C_COMPILER /usr/local/bin/clang)
+#set(CMAKE_CXX_COMPILER /usr/local/bin/clang++)
+#set(CMAKE_C_COMPILER /usr/local/bin/clang)
 
 set(SHARED_FLAGS "-DDEBUG -Wall -Wextra -O0 -g -fcolor-diagnostics")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SHARED_FLAGS} -stdlib=libc++ -std=c++11 -fpic")
@@ -40,3 +40,5 @@ target_link_libraries(ArnoldiTests kry_core gtest gtest_main pthread c++)
 
 add_executable(ieee14Test test/ieee14.cxx)
 target_link_libraries(ieee14Test kry_core kry_input gtest gtest_main pthread c++)
+
+add_subdirectory(systems)

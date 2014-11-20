@@ -47,6 +47,7 @@ unsigned short kry::input::psse::parseElem<unsigned short>(const string & src,
 kry::input::psse::Source::Source(string fn)
 {
     ifstream ifs = ifstream(fn);
+    if(!ifs.good()) throw runtime_error("Unable to read input file " + fn);
     text = string(istreambuf_iterator<char>(ifs),
                          istreambuf_iterator<char>());
     

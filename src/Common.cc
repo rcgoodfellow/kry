@@ -71,7 +71,8 @@ ulong kry::input::endOfSection(const string &text, ulong start, string delim)
 vector<ulong> kry::input::rowIndices(const string &text, ulong start, ulong end)
 {
     vector<ulong> result;
-    result.push_back(start);
+    if(start <= end)
+      result.push_back(start);
     for(ulong i=start; i<=end; ++i)
     {
         if(text[i] == '\n') { result.push_back(i+1); }
